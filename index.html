@@ -198,7 +198,8 @@ function parseEvent(ev, roundOrd) {
   const status = comp.status.type.name;
   const teams = comp.competitors.map(t => {
     const short = t.team.shortDisplayName;
-    const seed  = t.seed || null;
+    const seedRaw = t.seed || t.curatedRank?.current || null;
+    const seed  = (seedRaw && seedRaw < 20) ? seedRaw : null;
     const score = (status !== 'STATUS_SCHEDULED' && t.score != null) ? parseInt(t.score) : null;
     return { espn: short, torvik: findTorvik(short), seed, score };
   });
@@ -356,31 +357,20 @@ function buildPredHTML(g) {
   }
   const f12 = feats(a,b,g.roundOrd);
   const h1=ridge(f12.h1,MODEL.h1), h2=ridge(f12.h2,MODEL.h2), tot=h1+h2;
-  const pi=MODEL.prediction_intervals;
-  const h1l5=h1+pi.h1.pi50.lower_offset, h1h5=h1+pi.h1.pi50.upper_offset;
-  const h1l9=h1+pi.h1.pi90.lower_offset, h1h9=h1+pi.h1.pi90.upper_offset;
-  const h2l5=h2+pi.h2.pi50.lower_offset, h2h5=h2+pi.h2.pi50.upper_offset;
-  const h2l9=h2+pi.h2.pi90.lower_offset, h2h9=h2+pi.h2.pi90.upper_offset;
-  const ouNote = g.overUnder ? `Market O/U: <strong style="color:#e2e8f0">${g.overUnder}</strong> &bull; ` : '';
+  const ouNote = g.overUnder ? `<div class="pred-note">Market O/U: <strong style="color:#e2e8f0">${g.overUnder}</strong></div>` : '';
   return `<div class="pred-matchup"><strong>${t1.espn}</strong> vs <strong>${t2.espn}</strong></div>
   <div class="pred-rows">
     <div class="pred-col">
       <div class="pred-col-lbl">H1</div><div class="pred-col-val">${fv(h1)}</div>
-      <div class="pred-pi50">50%: ${fv(h1l5)}&ndash;${fv(h1h5)}</div>
-      <div class="pred-pi90">90%: ${fv(h1l9)}&ndash;${fv(h1h9)}</div>
     </div>
     <div class="pred-col">
       <div class="pred-col-lbl">H2</div><div class="pred-col-val">${fv(h2)}</div>
-      <div class="pred-pi50">50%: ${fv(h2l5)}&ndash;${fv(h2h5)}</div>
-      <div class="pred-pi90">90%: ${fv(h2l9)}&ndash;${fv(h2h9)}</div>
     </div>
     <div class="pred-col total">
       <div class="pred-col-lbl">Total</div><div class="pred-col-val">${fv(tot)}</div>
-      <div class="pred-pi50">50%: ${fv(h1l5+h2l5)}&ndash;${fv(h1h5+h2h5)}</div>
-      <div class="pred-pi90">90%: ${fv(h1l9+h2l9)}&ndash;${fv(h1h9+h2h9)}</div>
     </div>
   </div>
-  <div class="pred-note">${ouNote}MAE &asymp; H1:8.2 / H2:8.8 pts</div>`;
+  ${ouNote}`;
 }
 
 // ── Manual search ─────────────────────────────────────────────
