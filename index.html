@@ -33,18 +33,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tname{font-size:0.88rem;font-weight:600;color:#e2e8f0;line-height:1.2}
 .tscore{font-size:1.05rem;font-weight:700;color:#f8fafc;margin-top:2px}
 .vs{font-size:0.75rem;color:#334155;font-weight:700;flex-shrink:0}
-.pred-panel{background:#0f172a;border:1.5px solid #334155;border-radius:12px;padding:14px;margin-bottom:6px;display:none}
+.pred-panel{background:#0f172a;border:1.5px solid #334155;border-radius:12px;padding:16px;margin-bottom:6px;display:none}
 .pred-panel.open{display:block}
-.pred-matchup{text-align:center;font-size:0.75rem;color:#64748b;margin-bottom:10px}
-.pred-matchup strong{color:#94a3b8}
-.pred-rows{display:flex;gap:7px}
-.pred-col{flex:1;background:#1e293b;border-radius:9px;padding:10px 8px;text-align:center}
-.pred-col-lbl{font-size:0.62rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
-.pred-col-val{font-size:1.45rem;font-weight:800;color:#f1f5f9;line-height:1}
-.pred-col.total .pred-col-val{color:#60a5fa;font-size:1.75rem}
-.pred-pi50{font-size:0.63rem;color:#fbbf24;margin-top:3px}
-.pred-pi90{font-size:0.63rem;color:#475569;margin-top:1px}
-.pred-note{font-size:0.63rem;color:#334155;text-align:center;margin-top:8px}
+.pred-title{font-size:0.68rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.pred-matchup{font-size:0.92rem;font-weight:600;color:#cbd5e1;text-align:center;margin-bottom:14px}
+.proj-card{background:#1e293b;border-radius:10px;padding:12px 14px;margin-bottom:7px;border:1px solid #1e293b;border-left:3px solid #334155}
+.proj-card:last-child{margin-bottom:0}
+.proj-card.ep{border-left-color:#16a34a}
+.proj-card.en{border-left-color:#dc2626}
+.proj-header{display:flex;justify-content:space-between;align-items:baseline}
+.proj-lbl{font-size:0.68rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em}
+.proj-val{font-size:1.5rem;font-weight:800;color:#f1f5f9;line-height:1}
+.proj-val.tot{font-size:1.8rem;color:#60a5fa}
+.proj-mkt{display:flex;justify-content:space-between;align-items:center;margin-top:7px}
+.proj-mkt-lbl{font-size:0.72rem;color:#64748b}
+.proj-mkt-num{color:#94a3b8;font-weight:600}
+.proj-edge{font-size:0.72rem;font-weight:700}
+.proj-edge.ep{color:#4ade80}
+.proj-edge.en{color:#f87171}
+.proj-lean{font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:.03em}
+.proj-lean.over{background:#14532d;color:#86efac}
+.proj-lean.under{background:#450a0a;color:#fca5a5}
+.ebar{margin-top:6px;height:3px;background:#334155;border-radius:99px;overflow:hidden}
+.ebar-fill{height:100%;border-radius:99px}
+.ebar-fill.ep{background:#16a34a}
+.ebar-fill.en{background:#dc2626}
 .loading{text-align:center;padding:36px;color:#475569;font-size:0.85rem}
 .spinner{width:24px;height:24px;border:3px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -344,33 +357,46 @@ function ridge(f, m) {
 }
 function fv(v) { return v.toFixed(1); }
 
+function projRow(lbl, modelVal, market, isTot) {
+  const valCls = isTot ? 'proj-val tot' : 'proj-val';
+  let mktHTML = '';
+  if (market != null) {
+    const edge = modelVal - market;
+    const isPos = edge >= 0;
+    const ec = isPos ? 'ep' : 'en';
+    const sign = isPos ? '+' : '';
+    const pct = Math.min(Math.abs(edge) / 10, 1) * 100;
+    mktHTML = `<div class="proj-mkt">
+      <span class="proj-mkt-lbl">Market <span class="proj-mkt-num">${market}</span></span>
+      <span class="proj-edge ${ec}">${sign}${edge.toFixed(1)}</span>
+      <span class="proj-lean ${isPos?'over':'under'}">${isPos?'OVER':'UNDER'}</span>
+    </div>
+    <div class="ebar"><div class="ebar-fill ${ec}" style="width:${pct.toFixed(1)}%"></div></div>`;
+  }
+  return `<div class="proj-card ${market!=null?(modelVal-market>=0?'ep':'en'):''}">
+    <div class="proj-header">
+      <span class="proj-lbl">${lbl}</span>
+      <span class="${valCls}">${fv(modelVal)}</span>
+    </div>${mktHTML}
+  </div>`;
+}
+
 function buildPredHTML(g) {
   const [t1,t2] = g.teams;
   if (!t1.torvik || !t2.torvik || t1.espn==='TBD' || t2.espn==='TBD') {
-    return '<div style="text-align:center;padding:12px;color:#475569;font-size:.82rem">'+
-      'Matchup TBD — check back after earlier games finish.</div>';
+    return '<div style="text-align:center;padding:14px;color:#475569;font-size:.82rem">Matchup TBD — check back after earlier games finish.</div>';
   }
   const a=TEAMS[t1.torvik], b=TEAMS[t2.torvik];
   if (!a||!b) {
-    return `<div style="text-align:center;padding:12px;color:#ef4444;font-size:.82rem">
-      Stats not found: ${t1.espn}&rarr;${t1.torvik||'?'} / ${t2.espn}&rarr;${t2.torvik||'?'}</div>`;
+    return `<div style="text-align:center;padding:12px;color:#ef4444;font-size:.82rem">Stats not found: ${t1.espn} / ${t2.espn}</div>`;
   }
-  const f12 = feats(a,b,g.roundOrd);
+  const f12=feats(a,b,g.roundOrd);
   const h1=ridge(f12.h1,MODEL.h1), h2=ridge(f12.h2,MODEL.h2), tot=h1+h2;
-  const ouNote = g.overUnder ? `<div class="pred-note">Market O/U: <strong style="color:#e2e8f0">${g.overUnder}</strong></div>` : '';
-  return `<div class="pred-matchup"><strong>${t1.espn}</strong> vs <strong>${t2.espn}</strong></div>
-  <div class="pred-rows">
-    <div class="pred-col">
-      <div class="pred-col-lbl">H1</div><div class="pred-col-val">${fv(h1)}</div>
-    </div>
-    <div class="pred-col">
-      <div class="pred-col-lbl">H2</div><div class="pred-col-val">${fv(h2)}</div>
-    </div>
-    <div class="pred-col total">
-      <div class="pred-col-lbl">Total</div><div class="pred-col-val">${fv(tot)}</div>
-    </div>
-  </div>
-  ${ouNote}`;
+  return `<div class="pred-title">Game Projection</div>
+  <div class="pred-matchup">${t1.espn} vs ${t2.espn}</div>
+  ${projRow('First Half Total',  h1,  null,        false)}
+  ${projRow('Second Half Total', h2,  null,        false)}
+  ${projRow('Full Game Total',   tot, g.overUnder, true)}`;
 }
 
 // ── Manual search ─────────────────────────────────────────────
